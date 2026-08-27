@@ -205,19 +205,24 @@ open class CanvasViewModel @Inject constructor() : ViewModel() {
     }
 
     fun finishWriting() {
+        val textWithoutBlankLines =
+            currentText
+                .lineSequence()
+                .filter { it.isNotBlank() }
+                .joinToString("\n")
         val id = editingTextId
         if (id != null) {
             val index = canvasElements.indexOfFirst { it.id == id }
             val existing = index.takeIf { it >= 0 }?.let { canvasElements[it] as? TextElement }
-            if (existing != null && currentText.isNotBlank() && currentText != existing.text) {
+            if (existing != null && textWithoutBlankLines.isNotEmpty() && textWithoutBlankLines != existing.text) {
                 pushHistory()
-                canvasElements[index] = existing.copy(text = currentText)
+                canvasElements[index] = existing.copy(text = textWithoutBlankLines)
             }
-        } else if (currentText.isNotBlank()) {
+        } else if (textWithoutBlankLines.isNotEmpty()) {
             pushHistory()
             val newElement =
                 TextElement(
-                    text = currentText,
+                    text = textWithoutBlankLines,
                     color = currentTextColor.value,
                     size = currentTextSize.floatValue,
                     fontFamily = currentFontFamily.value,
