@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Разрешает нешифрованный (http, не https) трафик только на локальные/dev-адреса бэка —
-  10.0.2.2 (эмулятор -> localhost компьютера) и обычные приватные диапазоны Wi-Fi.
-  Это нужно, потому что backend/ по умолчанию поднимается без TLS (см. пояснение в чате
-  про Yandex Cloud/токены). Как задеплоишь бэк на реальный домен с HTTPS — просто поменяй
-  ApiConfig.baseUrl на https://... и этот файл (и cleartext-трафик) больше не понадобится.
--->
+<!-- Разрешает нешифрованный HTTP только для локальной разработки. -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">10.0.2.2</domain>
