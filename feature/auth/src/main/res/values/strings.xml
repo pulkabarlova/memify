@@ -13,6 +13,7 @@
     <string name="login_button">Войти</string>
     <string name="login_title">Вход</string>
     <string name="login_error_message">Ошибка входа</string>
+    <string name="login_error_google_code">Ошибка входа через Google (код %1$d)</string>
     <string name="id_token_not_found">ID токен не найден</string>
     <string name="auth_error">Ошибка авторизации:</string>
     <string name="not_less_than_8_symbols_requirement">не менее 8 символов</string>

@@ -17,6 +17,7 @@ import com.codekotliners.memify.core.theme.MemifyTheme
 import com.codekotliners.memify.features.auth.R
 import com.codekotliners.memify.features.auth.presentation.viewmodel.AuthState
 import com.codekotliners.memify.features.auth.presentation.viewmodel.AuthenticationViewModel
+import com.google.android.gms.common.api.ApiException as GoogleApiException
 
 @Composable
 fun AuthScreen(
@@ -50,7 +51,10 @@ fun AuthScreen(
                 onAuthenticated()
                 viewModel.resetSignInState()
             }
-            is AuthState.Error -> showError(context, (authState as AuthState.Error).exception)
+            is AuthState.Error -> {
+                showError(context, (authState as AuthState.Error).exception)
+                viewModel.resetSignInState()
+            }
             is AuthState.Loading -> {}
             is AuthState.Unauthenticated -> {}
         }
@@ -72,11 +76,18 @@ fun AuthScreen(
 }
 
 private fun showError(context: Context, error: Throwable) {
-    Logger.logError(context.getString(R.string.login_error_message), error)
+    val message =
+        if (error is GoogleApiException) {
+            context.getString(R.string.login_error_google_code, error.statusCode)
+        } else {
+            context.getString(R.string.login_error_message)
+        }
+
+    Logger.logError(message, error)
     Toast
         .makeText(
             context,
-            context.getString(R.string.login_error_message),
+            message,
             Toast.LENGTH_LONG,
         ).show()
 }
