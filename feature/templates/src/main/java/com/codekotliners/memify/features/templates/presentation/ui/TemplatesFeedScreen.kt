@@ -1,4 +1,4 @@
-package com.codekotliners.memify.features.templates.presentation.ui
+        package com.codekotliners.memify.features.templates.presentation.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
@@ -10,10 +10,12 @@ import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -26,6 +28,7 @@ import com.codekotliners.memify.features.templates.presentation.ui.components.Lo
 import com.codekotliners.memify.features.templates.presentation.ui.components.NoContentTab
 import com.codekotliners.memify.features.templates.presentation.ui.components.TemplatesGrid
 import com.codekotliners.memify.features.templates.presentation.viewmodel.TemplatesFeedViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +41,8 @@ fun TemplatesFeedScreen(
 ) {
     val pageState by viewModel.pageState.collectAsState()
     val toastMessage by viewModel.toastMessage.collectAsState()
+    val pullToRefreshState = rememberPullToRefreshState()
+    val coroutineScope = rememberCoroutineScope()
 
     val context = LocalContext.current
     LaunchedEffect(toastMessage) {
@@ -73,12 +78,17 @@ fun TemplatesFeedScreen(
                 )
             }
         }
+        val currentState = pageState.getCurrentTabState()
         PullToRefreshBox(
-            isRefreshing = pageState.refreshing,
-            onRefresh = { viewModel.refresh() },
+            isRefreshing = false,
+            onRefresh = {
+                viewModel.refresh()
+                coroutineScope.launch { pullToRefreshState.animateToHidden() }
+            },
             modifier = Modifier.fillMaxSize(),
+            state = pullToRefreshState,
         ) {
-            when (val currentState = pageState.getCurrentTabState()) {
+            when (currentState) {
                 TabState.None -> LoadingTab()
 
                 TabState.Loading -> LoadingTab()
