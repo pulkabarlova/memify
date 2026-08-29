@@ -113,38 +113,61 @@ class HomeViewModel @Inject constructor(
         val currentState = _uiState.value
         if (postId in currentState.pendingLikePostIds) return
 
+        val currentPost =
+            (currentState.feed as? HomeFeedUiModel.Content)
+                ?.posts
+                ?.firstOrNull { post -> post.id == postId }
+                ?: return
+        val previousUpdate = currentPost.toLikeUpdate()
+        val optimisticUpdate =
+            previousUpdate.copy(
+                isLiked = !previousUpdate.isLiked,
+                likesCount =
+                    if (previousUpdate.isLiked) {
+                        (previousUpdate.likesCount - 1).coerceAtLeast(0)
+                    } else {
+                        previousUpdate.likesCount + 1
+                    },
+            )
+
         _uiState.update { state ->
             state.copy(pendingLikePostIds = state.pendingLikePostIds + postId)
         }
+        applyLikeUpdate(optimisticUpdate)
 
         viewModelScope.launch {
             try {
                 when (val result = toggleHomePostLikeUseCase(postId)) {
                     ToggleHomePostLikeResult.AuthenticationRequired -> {
+                        applyLikeUpdate(previousUpdate)
                         _uiState.update { state -> state.copy(navigation = HomeNavigation.Auth) }
                     }
 
                     is ToggleHomePostLikeResult.Updated -> {
-                        likeUpdateGeneration += 1
-                        recentLikeUpdates[result.update.postId] =
-                            VersionedLikeUpdate(
-                                generation = likeUpdateGeneration,
-                                value = result.update,
-                            )
-                        _uiState.update { state ->
-                            state.copy(feed = state.feed.withLikeUpdate(result.update))
-                        }
+                        applyLikeUpdate(result.update)
                     }
                 }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
-                _uiState.update { state -> state.copy(message = HomeMessage.LikeUpdateFailed) }
+                applyLikeUpdate(previousUpdate)
             } finally {
                 _uiState.update { state ->
                     state.copy(pendingLikePostIds = state.pendingLikePostIds - postId)
                 }
             }
+        }
+    }
+
+    private fun applyLikeUpdate(update: HomeLikeUpdate) {
+        likeUpdateGeneration += 1
+        recentLikeUpdates[update.postId] =
+            VersionedLikeUpdate(
+                generation = likeUpdateGeneration,
+                value = update,
+            )
+        _uiState.update { state ->
+            state.copy(feed = state.feed.withLikeUpdate(update))
         }
     }
 }
@@ -174,6 +197,13 @@ private fun HomePostUiModel.withLikeUpdate(update: HomeLikeUpdate): HomePostUiMo
     copy(
         isLiked = update.isLiked,
         likesCount = update.likesCount,
+    )
+
+private fun HomePostUiModel.toLikeUpdate(): HomeLikeUpdate =
+    HomeLikeUpdate(
+        postId = id,
+        isLiked = isLiked,
+        likesCount = likesCount,
     )
 
 private data class VersionedLikeUpdate(

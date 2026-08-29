@@ -1,20 +1,16 @@
 package com.codekotliners.memify.features.home.presentation.ui.components
 
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.codekotliners.memify.features.home.R
 import com.codekotliners.memify.features.home.presentation.model.HomePostUiModel
 
@@ -34,28 +30,21 @@ internal fun PostCardFooter(
             onClick = onLikeClick,
             enabled = !isLikePending,
         ) {
-            if (isLikePending) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                )
-            } else {
-                Icon(
-                    imageVector =
-                        if (post.isLiked) {
-                            Icons.Filled.Favorite
-                        } else {
-                            Icons.Outlined.FavoriteBorder
-                        },
-                    contentDescription = actionDescription,
-                    tint =
-                        if (post.isLiked) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                )
-            }
+            Icon(
+                imageVector =
+                    if (post.isLiked) {
+                        Icons.Filled.Favorite
+                    } else {
+                        Icons.Outlined.FavoriteBorder
+                    },
+                contentDescription = actionDescription,
+                tint =
+                    if (post.isLiked) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+            )
         }
 
         Text(

@@ -1,181 +1,120 @@
 package com.codekotliners.memify.features.auth.presentation.viewmodel
 
-import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.codekotliners.memify.core.common.Response
-import com.codekotliners.memify.core.network.api.ApiException
-import com.codekotliners.memify.features.auth.R
+import com.codekotliners.memify.features.auth.domain.model.AuthResult
 import com.codekotliners.memify.features.auth.domain.repository.AuthRepository
-import com.codekotliners.memify.features.auth.presentation.state.RegistrationEvent
-import com.codekotliners.memify.features.auth.presentation.state.RegistrationUiState
-import com.codekotliners.memify.features.auth.presentation.ui.errorcodes.ConfirmPasswordErrorCode
-import com.codekotliners.memify.features.auth.presentation.ui.errorcodes.EmailErrorCode
-import com.codekotliners.memify.features.auth.presentation.ui.errorcodes.NameErrorCode
-import com.codekotliners.memify.features.auth.presentation.ui.errorcodes.PasswordErrorCode
+import com.codekotliners.memify.features.auth.domain.validation.AuthInputValidator
+import com.codekotliners.memify.features.auth.presentation.model.AuthNavigation
+import com.codekotliners.memify.features.auth.presentation.model.RegistrationAction
+import com.codekotliners.memify.features.auth.presentation.model.RegistrationUiState
+import com.codekotliners.memify.features.auth.presentation.model.toUiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
-class RegistrationViewModel @Inject constructor(
-    private val auth: AuthRepository,
+internal class RegistrationViewModel @Inject constructor(
+    private val repository: AuthRepository,
+    private val validator: AuthInputValidator,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RegistrationUiState())
     val uiState: StateFlow<RegistrationUiState> = _uiState.asStateFlow()
 
-    private val RegistrationUiState.hasUppercase: Boolean
-        get() = password.any(Char::isUpperCase)
-    private val RegistrationUiState.hasDigit: Boolean
-        get() = password.any(Char::isDigit)
-    private val RegistrationUiState.hasSpecialChar: Boolean
-        get() = password.any { !it.isLetterOrDigit() }
-    private val RegistrationUiState.meetsLength: Boolean
-        get() = password.length >= 8
-
-    fun onEvent(event: RegistrationEvent) {
-        when (event) {
-            is RegistrationEvent.NameChanged -> _uiState.update { it.copy(name = event.name, nameErrors = emptyList()) }
-            is RegistrationEvent.EmailChanged ->
-                _uiState.update {
-                    it.copy(
-                        email = event.email,
-                        emailErrors = emptyList(),
-                    )
+    fun onAction(action: RegistrationAction) {
+        when (action) {
+            is RegistrationAction.NameChanged ->
+                _uiState.update { state ->
+                    state.copy(name = action.name, nameError = null, message = null)
                 }
 
-            is RegistrationEvent.PasswordChanged ->
-                _uiState.update {
-                    it.copy(
-                        password = event.password,
+            is RegistrationAction.EmailChanged ->
+                _uiState.update { state ->
+                    state.copy(email = action.email, emailError = null, message = null)
+                }
+
+            is RegistrationAction.PasswordChanged ->
+                _uiState.update { state ->
+                    state.copy(
+                        password = action.password,
                         passwordErrors = emptyList(),
+                        confirmPasswordError =
+                            state.confirmPassword
+                                .takeIf(String::isNotBlank)
+                                ?.let { confirmation ->
+                                    validator.validateConfirmPassword(action.password, confirmation)
+                                },
+                        message = null,
                     )
                 }
 
-            is RegistrationEvent.ConfirmPasswordChanged ->
-                _uiState.update {
-                    it.copy(
-                        confirmPassword = event.confirmPassword,
-                        confirmPasswordErrors = emptyList(),
+            is RegistrationAction.ConfirmPasswordChanged ->
+                _uiState.update { state ->
+                    state.copy(
+                        confirmPassword = action.confirmation,
+                        confirmPasswordError = null,
+                        message = null,
                     )
                 }
 
-            RegistrationEvent.RegisterClicked -> registerUser()
+            RegistrationAction.Submit -> submit()
+            RegistrationAction.MessageDismissed -> _uiState.update { state -> state.copy(message = null) }
+            RegistrationAction.NavigationHandled -> _uiState.update { state -> state.copy(navigation = null) }
         }
     }
 
-    fun dismissErrorDialog() {
-        _uiState.update { it.copy(registrationErrorCode = null) }
-    }
+    private fun submit() {
+        val currentState = _uiState.value
+        if (currentState.isSubmitting) return
 
-    private fun RegistrationUiState.validateEmail(): RegistrationUiState {
-        val errors =
-            buildList {
-                if (email.isBlank()) {
-                    add(EmailErrorCode.Empty)
-                } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                    add(EmailErrorCode.InvalidFormat)
-                }
-            }
-        return copy(emailErrors = errors)
-    }
+        val validation =
+            validator.validateRegistration(
+                name = currentState.name,
+                email = currentState.email,
+                password = currentState.password,
+                confirmation = currentState.confirmPassword,
+            )
+        val validatedState =
+            currentState.copy(
+                nameError = validation.nameError,
+                emailError = validation.emailError,
+                passwordErrors = validation.passwordErrors,
+                confirmPasswordError = validation.confirmPasswordError,
+                message = null,
+            )
+        _uiState.value = validatedState
 
-    private fun RegistrationUiState.validateName(): RegistrationUiState {
-        val errors =
-            buildList {
-                if (name.isBlank()) {
-                    add(NameErrorCode.Empty)
-                } else if (name.length < 2) {
-                    add(NameErrorCode.TooShort)
-                }
-            }
-        return copy(nameErrors = errors)
-    }
-
-    private fun RegistrationUiState.validateConfirmPassword(): RegistrationUiState {
-        val errors =
-            buildList {
-                if (confirmPassword != password) add(ConfirmPasswordErrorCode.Mismatch)
-            }
-        return copy(confirmPasswordErrors = errors)
-    }
-
-    private fun RegistrationUiState.validatePassword(): RegistrationUiState {
-        val errors =
-            buildList {
-                if (!meetsLength) add(PasswordErrorCode.TooShort)
-                if (!hasUppercase) add(PasswordErrorCode.MissingUppercase)
-                if (!hasDigit) add(PasswordErrorCode.MissingDigit)
-                if (!hasSpecialChar) add(PasswordErrorCode.MissingSpecial)
-            }
-
-        return copy(passwordErrors = errors)
-    }
-
-    private fun validateAll(): Boolean {
-        var state = _uiState.value
-        state =
-            state
-                .validateName()
-                .validateEmail()
-                .validatePassword()
-                .validateConfirmPassword()
-        _uiState.value = state
-        return state.nameErrors.isEmpty() &&
-            state.emailErrors.isEmpty() &&
-            state.passwordErrors.isEmpty() &&
-            state.confirmPasswordErrors.isEmpty()
-    }
-
-    fun registerUser() {
-        if (!validateAll()) return
-
-        _uiState.update { it.copy(isLoading = true, registrationErrorCode = null) }
+        if (!validation.isValid) return
 
         viewModelScope.launch {
-            val result =
-                auth.firebaseCreateAccount(
-                    _uiState.value.name,
-                    _uiState.value.email.trim(),
-                    _uiState.value.password,
-                )
-
-            when (result) {
-                is Response.Failure<*> -> {
-                    val registrationErrorCode =
-                        when (val error = result.error) {
-                            is IOException -> R.string.auth_error_network
-                            is ApiException ->
-                                if (error.statusCode == 409) {
-                                    R.string.registration_error_email_already_used
-                                } else {
-                                    R.string.registration_error_general
-                                }
-                            else -> R.string.registration_error_general
-                        }
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            registrationErrorCode = registrationErrorCode,
+            _uiState.update { state -> state.copy(isSubmitting = true) }
+            when (
+                val result =
+                    repository.register(
+                        name = validation.name,
+                        email = validation.email,
+                        password = validation.password,
+                    )
+            ) {
+                AuthResult.Success ->
+                    _uiState.update { state ->
+                        state.copy(
+                            isSubmitting = false,
+                            navigation = AuthNavigation.Authenticated,
                         )
                     }
-                }
 
-                Response.Loading -> {}
-                is Response.Success<*> -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            registrationCompletedSuccessfully = true,
-                            registrationErrorCode = null,
+                is AuthResult.Failure ->
+                    _uiState.update { state ->
+                        state.copy(
+                            isSubmitting = false,
+                            message = result.reason.toUiMessage(),
                         )
                     }
-                }
             }
         }
     }

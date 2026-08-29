@@ -9,11 +9,9 @@ android {
 }
 
 dependencies {
-    implementation(projects.core.model)
     implementation(projects.core.common)
     implementation(projects.core.network)
     implementation(projects.core.prefs)
-    implementation(projects.core.user)
     implementation(projects.core.ui)
 
     implementation(platform(libs.androidx.compose.bom))
@@ -24,9 +22,9 @@ dependencies {
     implementation(libs.androidx.activity.compose)
 
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // Google Sign-In SDK — это НЕ Firebase, чистый play-services-auth, выдаёт ID-токен,
-    // который дальше идёт на свой бэк (POST /auth/google), см. AuthRepositoryImpl.
+    // SDK только получает Google ID token на UI-границе. Обмен токена на сессию выполняет backend.
     implementation(libs.play.services.auth)
 }

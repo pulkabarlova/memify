@@ -5,11 +5,9 @@ import javax.inject.Qualifier
 /**
  * Qualifier for the OAuth web client id used for Google Sign-In.
  *
- * The actual value comes from `R.string.default_web_client_id`, which is generated
- * by the google-services Gradle plugin only in the `:app` module (the only module
- * with `google-services.json` applied). This feature module cannot read that
- * generated resource directly (module-scoped R classes), so `:app` provides the
- * value through this qualifier instead.
+ * The actual value belongs to the `:app` module as `R.string.default_web_client_id`.
+ * This feature cannot read the app's module-scoped R class, so the app provides the
+ * value through this qualifier.
  */
 @Qualifier
 @Retention(AnnotationRetention.BINARY)

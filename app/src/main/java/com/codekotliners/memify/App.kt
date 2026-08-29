@@ -7,20 +7,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.codekotliners.memify.core.navigation.entities.TopLevelDestination
 import com.codekotliners.memify.core.navigation.navigateToTopLevelDestination
 import com.codekotliners.memify.core.theme.MemifyTheme
 import com.codekotliners.memify.core.ui.LocalSharedTransitionScope
-import com.codekotliners.memify.features.auth.presentation.viewmodel.AuthenticationViewModel
 import com.codekotliners.memify.navigation.MemifyNavHost
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun App(
     launchDestination: TopLevelDestination?,
-    authViewModel: AuthenticationViewModel = hiltViewModel(),
+    onDrawBehindStatusBarChanged: (Boolean) -> Unit = {},
 ) {
     val navController = rememberNavController()
 
@@ -34,7 +32,7 @@ fun App(
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
             MemifyNavHost(
                 navController = navController,
-                authViewModel = authViewModel,
+                onDrawBehindStatusBarChanged = onDrawBehindStatusBarChanged,
             )
         }
     }
