@@ -16,8 +16,8 @@ internal class DefaultProfileRepository @Inject constructor(
     private val localDataSource: ProfileLocalDataSource,
     private val remoteDataSource: ProfileRemoteDataSource,
 ) : ProfileRepository {
-    override fun observeCreatedMemes(): Flow<List<ProfileMeme>> =
-        localDataSource.observeCreatedMemes().map { memes ->
+    override fun observeLocalMemes(): Flow<List<ProfileMeme>> =
+        localDataSource.observeLocalMemes().map { memes ->
             memes.map { meme -> meme.toDomain() }
         }
 
@@ -27,6 +27,9 @@ internal class DefaultProfileRepository @Inject constructor(
         } else {
             ProfileAccount.Guest
         }
+
+    override suspend fun getCreatedMemes(): List<ProfileMeme> =
+        remoteDataSource.getCreatedMemes().map { meme -> meme.toDomain() }
 
     override suspend fun getLikedMemes(): List<ProfileMeme> =
         remoteDataSource.getLikedMemes().map { meme -> meme.toDomain() }

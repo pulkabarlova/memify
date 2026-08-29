@@ -24,6 +24,7 @@ enum class ProfileTab {
 
 enum class ProfileMessage {
     PROFILE_LOAD_FAILED,
+    CREATED_MEMES_LOAD_FAILED,
     LIKED_MEMES_LOAD_FAILED,
     AVATAR_UPDATE_FAILED,
 }

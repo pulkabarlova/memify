@@ -5,9 +5,11 @@ import com.codekotliners.memify.features.profile.domain.model.ProfileMeme
 import kotlinx.coroutines.flow.Flow
 
 interface ProfileRepository {
-    fun observeCreatedMemes(): Flow<List<ProfileMeme>>
+    fun observeLocalMemes(): Flow<List<ProfileMeme>>
 
     suspend fun getAccount(): ProfileAccount
+
+    suspend fun getCreatedMemes(): List<ProfileMeme>
 
     suspend fun getLikedMemes(): List<ProfileMeme>
 

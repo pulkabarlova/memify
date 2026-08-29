@@ -75,6 +75,7 @@ fun ProfileScreen(
     val messageText =
         when (state.message) {
             ProfileMessage.PROFILE_LOAD_FAILED -> stringResource(R.string.profile_load_failed)
+            ProfileMessage.CREATED_MEMES_LOAD_FAILED -> stringResource(R.string.created_memes_load_failed)
             ProfileMessage.LIKED_MEMES_LOAD_FAILED -> stringResource(R.string.liked_memes_load_failed)
             ProfileMessage.AVATAR_UPDATE_FAILED -> stringResource(R.string.avatar_update_failed)
             null -> null
