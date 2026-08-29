@@ -18,6 +18,8 @@ data class ProfileMeme(
 
 data class ProfileSnapshot(
     val account: ProfileAccount,
+    val createdMemes: List<ProfileMeme>,
     val likedMemes: List<ProfileMeme>,
+    val createdMemesLoadFailed: Boolean = false,
     val likedMemesLoadFailed: Boolean = false,
 )

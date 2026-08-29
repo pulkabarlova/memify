@@ -5,6 +5,7 @@ import androidx.core.net.toUri
 import com.codekotliners.memify.core.common.Response
 import com.codekotliners.memify.core.network.api.ApiConfig
 import com.codekotliners.memify.core.network.api.authorizedRequest
+import com.codekotliners.memify.core.network.models.PostDto
 import com.codekotliners.memify.core.network.models.UserDto
 import com.codekotliners.memify.core.prefs.TokenStore
 import com.codekotliners.memify.core.repositories.likes.LikesRepository
@@ -52,14 +53,22 @@ internal class ProfileRemoteDataSource @Inject constructor(
     }
 
     suspend fun getLikedMemes(): List<ProfileMemeData> =
-        likesRepository.getLikedPosts().map { post ->
-            ProfileMemeData(
-                id = post.id,
-                imageUrl = post.imageUrl,
-                width = post.width,
-                height = post.height,
-            )
-        }
+        likesRepository.getLikedPosts().map { post -> post.toProfileMemeData() }
+
+    suspend fun getCreatedMemes(): List<ProfileMemeData> {
+        val userId = tokenStore.getUserId() ?: return emptyList()
+        val posts: List<PostDto> =
+            httpClient.authorizedRequest(tokenStore) {
+                method = HttpMethod.Get
+                url(ApiConfig.baseUrl + "posts?limit=$CREATED_POSTS_LIMIT")
+            }
+
+        return posts
+            .asSequence()
+            .filter { post -> post.authorId == userId }
+            .map { post -> post.toProfileMemeData() }
+            .toList()
+    }
 
     suspend fun updateAvatar(imageUri: String): String {
         val uri = imageUri.toUri()
@@ -134,8 +143,17 @@ internal class ProfileRemoteDataSource @Inject constructor(
         return result.await()
     }
 
+    private fun PostDto.toProfileMemeData(): ProfileMemeData =
+        ProfileMemeData(
+            id = id,
+            imageUrl = imageUrl,
+            width = width,
+            height = height,
+        )
+
     private companion object {
         const val UPLOAD_URL_KEY = "url"
         const val DEFAULT_IMAGE_CONTENT_TYPE = "image/*"
+        const val CREATED_POSTS_LIMIT = 1_000
     }
 }

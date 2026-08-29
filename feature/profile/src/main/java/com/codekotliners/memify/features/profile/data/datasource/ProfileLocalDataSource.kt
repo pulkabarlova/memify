@@ -13,7 +13,7 @@ internal class ProfileLocalDataSource @Inject constructor(
 ) {
     fun isLoggedIn(): Boolean = tokenStore.isLoggedIn()
 
-    fun observeCreatedMemes(): Flow<List<ProfileMemeData>> =
+    fun observeLocalMemes(): Flow<List<ProfileMemeData>> =
         uriRepository.getAllUris().map { entities ->
             entities.map { entity ->
                 ProfileMemeData(

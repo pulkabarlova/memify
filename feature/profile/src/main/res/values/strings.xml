@@ -13,10 +13,11 @@
     <string name="liked">Понравившиеся</string>
     <string name="created">Созданные</string>
     <string name="empty_created_title">Здесь появятся ваши мемы</string>
-    <string name="empty_created_description">Создайте мем — он сохранится в этой коллекции</string>
+    <string name="empty_created_description">Создайте и опубликуйте мем — он появится в этой коллекции</string>
     <string name="empty_liked_title">Пока ничего не понравилось</string>
     <string name="empty_liked_description">Отмечайте публикации сердцем, чтобы собрать их здесь</string>
     <string name="profile_load_failed">Не удалось обновить профиль</string>
+    <string name="created_memes_load_failed">Не удалось загрузить созданные мемы</string>
     <string name="liked_memes_load_failed">Не удалось загрузить понравившиеся мемы</string>
     <string name="avatar_update_failed">Не удалось обновить фото профиля</string>
     <string name="profile_image_load_failed">Не удалось загрузить изображение</string>

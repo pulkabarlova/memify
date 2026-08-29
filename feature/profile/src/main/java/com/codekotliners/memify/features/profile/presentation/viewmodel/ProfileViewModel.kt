@@ -7,6 +7,7 @@ import com.codekotliners.memify.features.profile.domain.usecase.LoadProfileUseCa
 import com.codekotliners.memify.features.profile.presentation.model.ProfileAccountUiModel
 import com.codekotliners.memify.features.profile.presentation.model.ProfileAction
 import com.codekotliners.memify.features.profile.presentation.model.ProfileMessage
+import com.codekotliners.memify.features.profile.presentation.model.ProfileMemeUiModel
 import com.codekotliners.memify.features.profile.presentation.model.ProfileTab
 import com.codekotliners.memify.features.profile.presentation.model.ProfileUiState
 import com.codekotliners.memify.features.profile.presentation.model.toUiModel
@@ -32,9 +33,10 @@ class ProfileViewModel @Inject constructor(
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     private var refreshJob: Job? = null
+    private var localCreatedMemes = emptyList<ProfileMemeUiModel>()
 
     init {
-        observeCreatedMemes()
+        observeLocalMemes()
     }
 
     fun onAction(action: ProfileAction) {
@@ -46,12 +48,17 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    private fun observeCreatedMemes() {
+    private fun observeLocalMemes() {
         repository
-            .observeCreatedMemes()
+            .observeLocalMemes()
             .onEach { memes ->
+                localCreatedMemes = memes.map { meme -> meme.toUiModel() }
                 _uiState.update { state ->
-                    state.copy(createdMemes = memes.map { meme -> meme.toUiModel() })
+                    if (state.account is ProfileAccountUiModel.Authenticated) {
+                        state
+                    } else {
+                        state.copy(createdMemes = localCreatedMemes)
+                    }
                 }
             }.catch { exception ->
                 if (exception is CancellationException) throw exception
@@ -91,12 +98,23 @@ class ProfileViewModel @Inject constructor(
                                 } else {
                                     state.selectedTab
                                 },
-                            likedMemes = snapshot.likedMemes.map { meme -> meme.toUiModel() },
+                            createdMemes =
+                                when {
+                                    account is ProfileAccountUiModel.Guest -> localCreatedMemes
+                                    snapshot.createdMemesLoadFailed -> state.createdMemes
+                                    else -> snapshot.createdMemes.map { meme -> meme.toUiModel() }
+                                },
+                            likedMemes =
+                                when {
+                                    account is ProfileAccountUiModel.Guest -> emptyList()
+                                    snapshot.likedMemesLoadFailed -> state.likedMemes
+                                    else -> snapshot.likedMemes.map { meme -> meme.toUiModel() }
+                                },
                             message =
-                                if (snapshot.likedMemesLoadFailed) {
-                                    ProfileMessage.LIKED_MEMES_LOAD_FAILED
-                                } else {
-                                    state.message
+                                when {
+                                    snapshot.createdMemesLoadFailed -> ProfileMessage.CREATED_MEMES_LOAD_FAILED
+                                    snapshot.likedMemesLoadFailed -> ProfileMessage.LIKED_MEMES_LOAD_FAILED
+                                    else -> state.message
                                 },
                         )
                     }
