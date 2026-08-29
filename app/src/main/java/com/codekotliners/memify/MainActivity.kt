@@ -1,6 +1,6 @@
 package com.codekotliners.memify
 
-import android.graphics.Rect
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -15,6 +15,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -27,13 +30,17 @@ import com.codekotliners.memify.core.theme.surfaceLight
 import dagger.hilt.android.AndroidEntryPoint
 
 @Composable
-fun SetSystemBarsBackground(window: Window, isDark: Boolean) {
+fun SetSystemBarsBackground(
+    window: Window,
+    isDark: Boolean,
+    drawBehindStatusBar: Boolean,
+) {
     val color = (if (isDark) surfaceDark else surfaceLight).toArgb()
     val decor = window.decorView
     val insetsController = WindowCompat.getInsetsController(window, decor)
 
     SideEffect {
-        insetsController.isAppearanceLightStatusBars = !isDark
+        insetsController.isAppearanceLightStatusBars = drawBehindStatusBar || !isDark
         insetsController.isAppearanceLightNavigationBars = !isDark
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -50,7 +57,12 @@ fun SetSystemBarsBackground(window: Window, isDark: Boolean) {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM -> {
             decor.setOnApplyWindowInsetsListener { view, insets ->
                 val inset = insets.getInsets(WindowInsets.Type.statusBars()).top
-                view.setPadding(view.paddingLeft, inset, view.paddingRight, view.paddingBottom)
+                view.setPadding(
+                    view.paddingLeft,
+                    if (drawBehindStatusBar) 0 else inset,
+                    view.paddingRight,
+                    view.paddingBottom,
+                )
                 view.setBackgroundColor(color)
                 view.setOnApplyWindowInsetsListener(null)
                 insets
@@ -61,27 +73,20 @@ fun SetSystemBarsBackground(window: Window, isDark: Boolean) {
             val decorView = window.decorView
             val contentView = decorView.findViewById<View>(android.R.id.content)
 
-            val originalPadding =
-                Rect(
-                    contentView.paddingLeft,
-                    contentView.paddingTop,
-                    contentView.paddingRight,
-                    contentView.paddingBottom,
-                )
             ViewCompat.setOnApplyWindowInsetsListener(contentView) { view, insets ->
                 val statusBarInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
                 view.setPadding(
-                    originalPadding.left,
-                    statusBarInset,
-                    originalPadding.right,
-                    originalPadding.bottom,
+                    view.paddingLeft,
+                    if (drawBehindStatusBar) 0 else statusBarInset,
+                    view.paddingRight,
+                    view.paddingBottom,
                 )
                 insets
             }
             ViewCompat.requestApplyInsets(decorView)
 
             @Suppress("DEPRECATION")
-            window.statusBarColor = color
+            window.statusBarColor = if (drawBehindStatusBar) Color.TRANSPARENT else color
         }
     }
 }
@@ -102,6 +107,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val themeMode by appThemeViewModel.themeMode.collectAsState()
+            var drawBehindStatusBar by remember { mutableStateOf(false) }
             val themeKind =
                 when (themeMode) {
                     ThemeMode.DARK_MODE -> true
@@ -109,13 +115,20 @@ class MainActivity : ComponentActivity() {
                     else -> isSystemInDarkTheme()
                 }
 
-            SetSystemBarsBackground(window, themeKind)
+            SetSystemBarsBackground(
+                window = window,
+                isDark = themeKind,
+                drawBehindStatusBar = drawBehindStatusBar,
+            )
 
             MemifyTheme(
                 dynamicColor = false,
                 darkTheme = themeKind,
             ) {
-                App(launchDestination)
+                App(
+                    launchDestination = launchDestination,
+                    onDrawBehindStatusBarChanged = { drawBehindStatusBar = it },
+                )
             }
         }
     }

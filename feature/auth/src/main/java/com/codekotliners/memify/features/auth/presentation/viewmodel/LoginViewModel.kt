@@ -1,116 +1,90 @@
 package com.codekotliners.memify.features.auth.presentation.viewmodel
 
-import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.codekotliners.memify.core.common.Response
-import com.codekotliners.memify.features.auth.R
+import com.codekotliners.memify.features.auth.domain.model.AuthResult
 import com.codekotliners.memify.features.auth.domain.repository.AuthRepository
-import com.codekotliners.memify.features.auth.presentation.state.LoginEvent
-import com.codekotliners.memify.features.auth.presentation.state.LoginUiState
-import com.codekotliners.memify.features.auth.presentation.ui.errorcodes.LoginErrorCode
-import com.codekotliners.memify.features.auth.presentation.ui.errorcodes.PasswordErrorCode
+import com.codekotliners.memify.features.auth.domain.validation.AuthInputValidator
+import com.codekotliners.memify.features.auth.presentation.model.AuthNavigation
+import com.codekotliners.memify.features.auth.presentation.model.LoginAction
+import com.codekotliners.memify.features.auth.presentation.model.LoginUiState
+import com.codekotliners.memify.features.auth.presentation.model.toUiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
-class LoginViewModel @Inject constructor(
-    private val auth: AuthRepository,
+internal class LoginViewModel @Inject constructor(
+    private val repository: AuthRepository,
+    private val validator: AuthInputValidator,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LoginUiState())
-    val uiState = _uiState.asStateFlow()
+    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    fun onEvent(event: LoginEvent) {
-        when (event) {
-            is LoginEvent.LoginChanged -> _uiState.update { it.copy(login = event.login, loginErrors = emptyList()) }
-
-            is LoginEvent.PasswordChanged ->
-                _uiState.update {
-                    it.copy(
-                        password = event.password,
-                        passwordErrors = emptyList(),
+    fun onAction(action: LoginAction) {
+        when (action) {
+            is LoginAction.EmailChanged ->
+                _uiState.update { state ->
+                    state.copy(
+                        email = action.email,
+                        emailError = null,
+                        message = null,
                     )
                 }
 
-            LoginEvent.LoginClicked -> loginUser()
+            is LoginAction.PasswordChanged ->
+                _uiState.update { state ->
+                    state.copy(
+                        password = action.password,
+                        passwordErrors = emptyList(),
+                        message = null,
+                    )
+                }
+
+            LoginAction.Submit -> submit()
+            LoginAction.MessageDismissed -> _uiState.update { state -> state.copy(message = null) }
+            LoginAction.NavigationHandled -> _uiState.update { state -> state.copy(navigation = null) }
         }
     }
 
-    private fun LoginUiState.validateLogin(): LoginUiState {
-        val errors =
-            buildList {
-                if (login.isBlank()) {
-                    add(LoginErrorCode.Empty)
-                } else if (!Patterns.EMAIL_ADDRESS.matcher(login).matches()) {
-                    add(LoginErrorCode.InvalidFormat)
-                }
-            }
-        return copy(loginErrors = errors)
-    }
+    private fun submit() {
+        val currentState = _uiState.value
+        if (currentState.isSubmitting) return
 
-    private fun LoginUiState.validatePassword(): LoginUiState {
-        val errors = emptyList<PasswordErrorCode>()
-        return copy(passwordErrors = errors)
-    }
+        val validation = validator.validateLogin(currentState.email, currentState.password)
+        val validatedState =
+            currentState.copy(
+                emailError = validation.emailError,
+                passwordErrors = validation.passwordErrors,
+                message = null,
+            )
+        _uiState.value = validatedState
 
-    private fun validateAll(): Boolean {
-        var state = _uiState.value
-        state =
-            state
-                .validateLogin()
-                .validatePassword()
-        _uiState.value = state
-        return state.loginErrors.isEmpty() &&
-            state.passwordErrors.isEmpty()
-    }
-
-    fun loginUser() {
-        if (!validateAll()) return
-
-        _uiState.update { it.copy(isLoading = true, loginErrorCode = null) }
+        if (!validation.isValid) return
 
         viewModelScope.launch {
-            val result =
-                auth.firebaseSignIn(
-                    _uiState.value.login,
-                    _uiState.value.password,
-                )
-
-            when (result) {
-                is Response.Failure<*> -> {
-                    val loginErrorCode =
-                        when (result.error) {
-                            is IOException -> R.string.auth_error_network
-                            else -> R.string.login_error_general
-                        }
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            loginErrorCode = loginErrorCode,
+            _uiState.update { state -> state.copy(isSubmitting = true) }
+            when (val result = repository.signIn(validation.email, validation.password)) {
+                AuthResult.Success ->
+                    _uiState.update { state ->
+                        state.copy(
+                            isSubmitting = false,
+                            navigation = AuthNavigation.Authenticated,
                         )
                     }
-                }
 
-                Response.Loading -> {}
-                is Response.Success<*> -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            loginCompletedSuccessfully = true,
-                            loginErrorCode = null,
+                is AuthResult.Failure ->
+                    _uiState.update { state ->
+                        state.copy(
+                            isSubmitting = false,
+                            message = result.reason.toUiMessage(),
                         )
                     }
-                }
             }
         }
-    }
-
-    fun dismissErrorDialog() {
-        _uiState.update { it.copy(loginErrorCode = null) }
     }
 }

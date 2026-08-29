@@ -6,10 +6,12 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -24,7 +26,6 @@ import com.codekotliners.memify.core.ui.LocalNavAnimatedVisibilityScope
 import com.codekotliners.memify.features.auth.presentation.ui.AuthScreen
 import com.codekotliners.memify.features.auth.presentation.ui.LoginScreen
 import com.codekotliners.memify.features.auth.presentation.ui.RegistrationScreen
-import com.codekotliners.memify.features.auth.presentation.viewmodel.AuthenticationViewModel
 import com.codekotliners.memify.features.create.presentation.ui.CreateScreen
 import com.codekotliners.memify.features.home.presentation.ui.HomeScreen
 import com.codekotliners.memify.features.profile.presentation.ui.ProfileScreen
@@ -37,10 +38,17 @@ import com.codekotliners.memify.features.viewer.presentation.ui.ImageViewerScree
 @Composable
 fun MemifyNavHost(
     navController: NavHostController,
-    authViewModel: AuthenticationViewModel,
+    onDrawBehindStatusBarChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val drawBehindStatusBar =
+        currentBackStackEntry?.destination?.hasRoute<AppRoute.Auth>() == true
+
+    LaunchedEffect(drawBehindStatusBar) {
+        onDrawBehindStatusBarChanged(drawBehindStatusBar)
+    }
+
     val bottomBar: @Composable () -> Unit = {
         BottomNavigationBar(
             currentDestination = currentBackStackEntry?.destination,
@@ -161,7 +169,6 @@ fun MemifyNavHost(
                 },
                 onNavigateToLogin = { navController.navigate(AppRoute.Login) },
                 onNavigateToRegister = { navController.navigate(AppRoute.Register) },
-                viewModel = authViewModel,
             )
         }
 
