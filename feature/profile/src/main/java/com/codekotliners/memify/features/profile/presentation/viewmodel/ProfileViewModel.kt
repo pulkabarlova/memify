@@ -35,7 +35,6 @@ class ProfileViewModel @Inject constructor(
 
     init {
         observeCreatedMemes()
-        refresh()
     }
 
     fun onAction(action: ProfileAction) {

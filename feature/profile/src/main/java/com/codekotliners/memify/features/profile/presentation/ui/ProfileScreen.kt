@@ -80,6 +80,12 @@ fun ProfileScreen(
             null -> null
         }
 
+    LaunchedEffect(Unit) {
+        if (!refreshRequested) {
+            viewModel.onAction(ProfileAction.Refresh)
+        }
+    }
+
     LaunchedEffect(refreshRequested) {
         if (refreshRequested) {
             onRefreshHandled()
