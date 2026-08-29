@@ -1,6 +1,9 @@
 name: Kotlin CI
 
 on:
+  push:
+    branches:
+      - master
   pull_request:
     branches:
       - master
@@ -39,7 +42,17 @@ jobs:
       - name: Build debug
         run: ./gradlew assembleDebug
 
+      - name: Upload debug APK
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: memify-debug-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
   static_analysis:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout static code
