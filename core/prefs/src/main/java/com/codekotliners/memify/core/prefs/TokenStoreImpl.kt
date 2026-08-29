@@ -1,9 +1,11 @@
 package com.codekotliners.memify.core.prefs
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.crypto.AEADBadTagException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,9 +22,25 @@ private const val KEY_USER_ID = "user_id"
 class TokenStoreImpl @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : TokenStore {
-    private val prefs by lazy {
+    private val prefs by lazy { createEncryptedPreferencesWithRecovery() }
+
+    private fun createEncryptedPreferencesWithRecovery(): SharedPreferences =
+        try {
+            createEncryptedPreferences()
+        } catch (_: AEADBadTagException) {
+            // The encrypted keyset cannot be recovered when SharedPreferences were restored
+            // without their Android Keystore key. Drop only the invalid session and start fresh.
+            context
+                .getSharedPreferences(PREFS_FILE_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .clear()
+                .commit()
+            createEncryptedPreferences()
+        }
+
+    private fun createEncryptedPreferences(): SharedPreferences {
         val masterKey = MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
-        EncryptedSharedPreferences.create(
+        return EncryptedSharedPreferences.create(
             context,
             PREFS_FILE_NAME,
             masterKey,
